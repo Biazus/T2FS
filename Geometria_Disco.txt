@@ -1,0 +1,6 @@
+CtrlSize = 1 bloco
+Disksize = 256 blocos
+Blocksize = 256 bytes
+FreeBlockSize = 1 blocos
+RootSize = 16 blocos
+FileEntry = 64 bytes
