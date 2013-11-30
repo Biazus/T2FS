@@ -10,6 +10,16 @@ short int freeBlockSize = 1;
 short int rootSize = 16;
 short int fileEntry = 64;
 
+struct st_Descritor{
+    t2fs_record record;
+    int currentPos;
+};
+typedef struct  st_Descritor Descritor;
+
+Descritor* descritores_abertos[20];
+char count_descritores = 0;
+
+
 int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bitmap
 {
     char block[blockSize];
@@ -173,10 +183,8 @@ int InsertFileRecord(t2fs_record* record)
         {
             if((unsigned char)block[i] < 161 || (unsigned char)block[i] > 250)  //se o registro não for válido, grava o novo registro
             {
-                printf("\nPrimeiroCaracter = %d, achou no i=%d e iBloco=%d\n", (unsigned char)block[i], i, iBloco);
                 memcpy(block+i, record, sizeof(*record));  //grava o primeiro registro
                 block[i] += 128;		//soma 128 no primeiro caracter
-                printf("\nPrimeiro caracter novo = %d\n", (unsigned char)block[i]);
                 dirty = 1;
                 break;
             }
@@ -215,34 +223,18 @@ t2fs_file t2fs_create (char *nome)
 {
     GetDiskInformation();
 
-	char *name;
+    if(count_descritores >= 20)
+    {
+        printf("***********ERRO: Voce ja possui 20 arquivos abertos!\n");
+        return -1;
+    }
+
+    char *name;
     name = ExtendName(nome);
 
     char diretorioBlock[blockSize];
-    t2fs_record newFile;
-    memcpy(newFile.name, name, 40);//sizeof(nome));
-    newFile.name[39] = 0;
-    newFile.blocksFileSize = 0;
-    newFile.bytesFileSize = 0;
-    newFile.dataPtr[0] = 0;
-    newFile.dataPtr[1] = 0;
-    newFile.singleIndPtr = 0;
-    newFile.doubleIndPtr = 0;
 
-	int arquivoExiste;
-	int pos;
-    arquivoExiste = fileExists(name, &pos);
-    if (arquivoExiste)
-    {
-		printf("\nNome de arquivo já existe, seu conteúdo será apagado.\n");
-		DeleteFileContent(arquivoExiste, pos);
-		t2fs_file f = 0;
-    	return f;
-    }
-
-    InsertFileRecord(&newFile);
-
-    TCB* t = (TCB*)malloc(sizeof(TCB));
+    Descritor* t = (Descritor*)malloc(sizeof(Descritor));
     memcpy(t->record.name, name, 40);//sizeof(nome));
     t->record.name[39] = 0;
     t->record.blocksFileSize = 0;
@@ -254,14 +246,10 @@ t2fs_file t2fs_create (char *nome)
 
     InsertFileRecord(&t->record);
 
-    if(lista_descritor == NULL)
-        lista_descritor = createList();
+    descritores_abertos[count_descritores] = t;
+    count_descritores++;
 
-    t2fs_file handler = 0;
-    t->handler = handler;
-    insertList(&lista_descritor, t);
-
-    return t->handler;
+    return count_descritores-1;
 }
 
 
@@ -276,8 +264,7 @@ int t2fs_delete (char *nome)
 
 t2fs_file t2fs_open (char *nome)
 {
-	t2fs_record arquivo;
-	strcpy(arquivo.name, nome);
+
 }
 
 int t2fs_close (t2fs_file handle)
@@ -305,4 +292,13 @@ int t2fs_first (t2fs_find *find_struct)
 int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile)
 {
 
+}
+
+void sair(void)
+{
+    int i = 0;
+    for (i = 0; i < count_descritores; ++i)
+    {
+        free(descritores_abertos[i]);
+    }
 }
