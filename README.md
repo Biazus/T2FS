@@ -11,3 +11,5 @@ T2FS
           t2fs_delete()
 
 [PRONTO (Guilherme)] t2fs_open
+
+[PRONTO (Guilherme)] t2fs_close
