@@ -174,7 +174,6 @@ int InsertFileRecord(t2fs_record* record)
     int i=0, dirty = 0, iBloco = 0, lenBlkCtrl = 0;
     char block[blockSize];
     lenBlkCtrl = ctrlSize + freeBlockSize;    //offset para posição do root
-	printf("\nNome: = %s\n", record->name);
 
     for(iBloco = 0; iBloco < rootSize; iBloco++)  //varre o diretório raiz
     {
@@ -232,8 +231,6 @@ t2fs_file t2fs_create (char *nome)
     char *name;
     name = ExtendName(nome);
 
-    char diretorioBlock[blockSize];
-
     Descritor* t = (Descritor*)malloc(sizeof(Descritor));
     memcpy(t->record.name, name, 40);//sizeof(nome));
     t->record.name[39] = 0;
@@ -264,7 +261,42 @@ int t2fs_delete (char *nome)
 
 t2fs_file t2fs_open (char *nome)
 {
+    GetDiskInformation();
 
+    if(count_descritores >= 20)
+    {
+        printf("\n******ERRO: Voce ja possui 20 arquivos abertos. \n");
+        return -1;
+    }
+
+    int i=0, found = 0, iBloco = 0, lenBlkCtrl = 0;
+    char block[blockSize];
+    lenBlkCtrl = ctrlSize + freeBlockSize;    //offset para posição do root
+
+    nome = ExtendName(nome);
+    *nome = *nome | 128; //Liga o bit 7 para fazer a pesquisa
+
+    for(iBloco = 0; iBloco < rootSize; iBloco++)  //varre o diretório raiz
+    {
+        read_block(lenBlkCtrl + iBloco, block);   //lê o bloco
+        for (i = 0; i < blockSize; i+=64)       //varre o bloco lido
+        {
+            printf("i = %d arquivo: %s e Nome pesquisa: %s\n", i, block + i, nome);
+            if(strcmp(block + i, nome) == 0)  //compara pelo nome
+            {
+                printf("encontrado no bloco %d\n", lenBlkCtrl + iBloco);
+                Descritor* t = (Descritor*)malloc(sizeof(Descritor));
+                t->currentPos = 0;
+                memcpy(block+i, &(t->record), sizeof(t->record));  //grava o primeiro registro
+                descritores_abertos[count_descritores] = t;
+                count_descritores++;
+                found = 1;
+                return count_descritores - 1;
+            }
+        }
+    }
+    printf("\n******ERRO: Não foi possível encontrar o arquivo. \n");
+    return - 1;
 }
 
 int t2fs_close (t2fs_file handle)

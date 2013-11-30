@@ -10,4 +10,4 @@ T2FS
 [FAZENDO (Naiche)] Deletar conteúdo de arquivo com mesmo nome.
           t2fs_delete()
 
-[FAZENDO (Guilherme)] t2fs_open
+[PRONTO (Guilherme)] t2fs_open
