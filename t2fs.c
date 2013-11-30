@@ -12,12 +12,14 @@ short int fileEntry = 64;
 
 struct st_Descritor{
     t2fs_record record;
+    t2fs_file handler;
     int currentPos;
 };
 typedef struct  st_Descritor Descritor;
 
 Descritor* descritores_abertos[20];
 char count_descritores = 0;
+t2fs_file next_handler = 0;
 
 
 int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bitmap
@@ -243,10 +245,14 @@ t2fs_file t2fs_create (char *nome)
 
     InsertFileRecord(&t->record);
 
+    t->handler = next_handler;
+
+    next_handler++;
+
     descritores_abertos[count_descritores] = t;
     count_descritores++;
 
-    return count_descritores-1;
+    return t->handler;
 }
 
 
@@ -287,11 +293,15 @@ t2fs_file t2fs_open (char *nome)
                 printf("encontrado no bloco %d\n", lenBlkCtrl + iBloco);
                 Descritor* t = (Descritor*)malloc(sizeof(Descritor));
                 t->currentPos = 0;
+                t->handler = next_handler;
+
+                next_handler++;
+
                 memcpy(block+i, &(t->record), sizeof(t->record));  //grava o primeiro registro
                 descritores_abertos[count_descritores] = t;
                 count_descritores++;
                 found = 1;
-                return count_descritores - 1;
+                return t->handler;;
             }
         }
     }
@@ -301,7 +311,19 @@ t2fs_file t2fs_open (char *nome)
 
 int t2fs_close (t2fs_file handle)
 {
-
+    int i =0, j=0;
+    for (i = 0; i < 20; ++i)
+    {
+        if(descritores_abertos[i]->handler == handle){
+            free(descritores_abertos[i]);
+            for(j=i+1;  j<20; j++)
+            {
+                descritores_abertos[j - 1] = descritores_abertos[j];
+            }
+            count_descritores--;
+            break;
+        }
+    }
 }
 
 //read
@@ -329,6 +351,7 @@ int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile)
 void sair(void)
 {
     int i = 0;
+    printf("\ncount_descritores = %d\n", count_descritores);
     for (i = 0; i < count_descritores; ++i)
     {
         free(descritores_abertos[i]);
