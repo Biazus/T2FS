@@ -35,4 +35,6 @@ int t2fs_seek (t2fs_file handle, unsigned int offset);
 int t2fs_first (t2fs_find *findStruct);
 int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile);
 
+void sair(void);
+
 #endif
