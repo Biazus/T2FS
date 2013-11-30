@@ -9,6 +9,8 @@ T2FS
 
 [FAZENDO (Naiche)] Deletar conteúdo de arquivo com mesmo nome.
           t2fs_delete()
+          tsfs_write()
+          allocateBlock()
 
 [PRONTO (Guilherme)] t2fs_open
 
