@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "typedefs.h"
-#include "listas.h"
+#include "t2fs.h"
 
 int geometryLoaded = 0;
 char ctrlSize = 1;
@@ -10,7 +9,6 @@ short int blockSize = 256;
 short int freeBlockSize = 1;
 short int rootSize = 16;
 short int fileEntry = 64;
-ItemList* lista_descritor = NULL;
 
 int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bitmap
 {
@@ -47,7 +45,7 @@ int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bi
 }
 
 
-int fileExists(char *nome)
+int fileExists(char *nome, int *posicao)
 {
     int i=0, iBloco = 0, lenBlkCtrl = 0;
 	int j;
@@ -68,7 +66,8 @@ int fileExists(char *nome)
         	if(!strcmp(nome, fileName))  //se o registro tem o nome procurado, retorna sua posição
        		{
 				//printf("\nJá existe na posição %d ", (iBloco) * blockSize + i);
-				return (lenBlkCtrl + iBloco) * blockSize + i;
+				*posicao = i;
+				return (lenBlkCtrl + iBloco);
             }
         }
     }
@@ -77,9 +76,31 @@ int fileExists(char *nome)
 }
 
 
-int DeleteFileContent(int posicao)  //apaga o conteúdo de um arquivo
+int DeleteFileContent(int bloco, int posicao)  //apaga o conteúdo de um arquivo
 {
+	if (bloco < ctrlSize || bloco > (ctrlSize + rootSize - 1))
+	{
+		printf ("Endereço de arquivo fora do diretório raiz\n");
+		return 0;
+	}
 
+	//implementar atualizacao do bitmap
+
+	printf("\nDeletando posição %d do Bloco %d\n", posicao, bloco);
+
+	char block[blockSize];
+	int iBloco, posByte, i;
+
+    read_block(bloco, block);        //lê o bloco
+
+	for(i = posicao+40; i<posicao+48; i++)
+	{
+		block[i] = 0;   //zera o tamanho em blocos (40) e em bytes (44)
+	}
+
+	write_block(bloco, block);       //escreve no disco
+
+	return 1;
 }
 
 
@@ -143,6 +164,7 @@ int InsertFileRecord(t2fs_record* record)
     int i=0, dirty = 0, iBloco = 0, lenBlkCtrl = 0;
     char block[blockSize];
     lenBlkCtrl = ctrlSize + freeBlockSize;    //offset para posição do root
+	printf("\nNome: = %s\n", record->name);
 
     for(iBloco = 0; iBloco < rootSize; iBloco++)  //varre o diretório raiz
     {
@@ -151,8 +173,10 @@ int InsertFileRecord(t2fs_record* record)
         {
             if((unsigned char)block[i] < 161 || (unsigned char)block[i] > 250)  //se o registro não for válido, grava o novo registro
             {
+                printf("\nPrimeiroCaracter = %d, achou no i=%d e iBloco=%d\n", (unsigned char)block[i], i, iBloco);
                 memcpy(block+i, record, sizeof(*record));  //grava o primeiro registro
                 block[i] += 128;		//soma 128 no primeiro caracter
+                printf("\nPrimeiro caracter novo = %d\n", (unsigned char)block[i]);
                 dirty = 1;
                 break;
             }
@@ -161,8 +185,8 @@ int InsertFileRecord(t2fs_record* record)
         {
             printf("Salvo no bloco %d\n", lenBlkCtrl + iBloco);
             write_block(lenBlkCtrl + iBloco, block);       //escreve no disco
-	setBitBitmap(iBloco + lenBlkCtrl, 1);
-	break;
+			setBitBitmap(iBloco + lenBlkCtrl, 1);
+			break;
         }
     }
 
@@ -187,18 +211,36 @@ char* ExtendName(char *nome)
 	return (extName);
 }
 
-
-/*-----------------------------------------------------------------------------------------------------------------------------*/
-/*                      PUBLICO                                                                                                                        */
-/*-----------------------------------------------------------------------------------------------------------------------------*/
 t2fs_file t2fs_create (char *nome)
 {
     GetDiskInformation();
 
-    char *name;
+	char *name;
     name = ExtendName(nome);
 
     char diretorioBlock[blockSize];
+    t2fs_record newFile;
+    memcpy(newFile.name, name, 40);//sizeof(nome));
+    newFile.name[39] = 0;
+    newFile.blocksFileSize = 0;
+    newFile.bytesFileSize = 0;
+    newFile.dataPtr[0] = 0;
+    newFile.dataPtr[1] = 0;
+    newFile.singleIndPtr = 0;
+    newFile.doubleIndPtr = 0;
+
+	int arquivoExiste;
+	int pos;
+    arquivoExiste = fileExists(name, &pos);
+    if (arquivoExiste)
+    {
+		printf("\nNome de arquivo já existe, seu conteúdo será apagado.\n");
+		DeleteFileContent(arquivoExiste, pos);
+		t2fs_file f = 0;
+    	return f;
+    }
+
+    InsertFileRecord(&newFile);
 
     TCB* t = (TCB*)malloc(sizeof(TCB));
     memcpy(t->record.name, name, 40);//sizeof(nome));
@@ -263,10 +305,4 @@ int t2fs_first (t2fs_find *find_struct)
 int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile)
 {
 
-}
-
-void sair(void)
-{
-    if(lista_descritor != NULL)
-        destroy(lista_descritor);
 }
