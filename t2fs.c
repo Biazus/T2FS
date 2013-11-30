@@ -210,7 +210,7 @@ t2fs_file t2fs_create (char *nome)
     t->record.singleIndPtr = 0;
     t->record.doubleIndPtr = 0;
 
-    //InsertFileRecord(&t->record);
+    InsertFileRecord(&t->record);
 
     if(lista_descritor == NULL)
         lista_descritor = createList();
