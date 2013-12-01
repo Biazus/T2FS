@@ -4,14 +4,17 @@ T2FS
     [PRONTO (Guilherme)] - Lista para armazenar os descritores de arquivos abertos
 
 [PRONTO (Naiche)] não criar dois arquivos com o mesmo nome e gravar bloco como usado no bitmap.
-    [Removido (Guilherme)] - Segundo espeificação, se o arquivo existir, o mesmo deve ser substituído.
-		[Explicação (Naiche)] Por isso eu estou fazendo deletar conteúdo de arquivo com mesmo nome.
+    [Removido (Guilherme)] - Segundo especificação, se o arquivo existir, o mesmo deve ser substituído.
+		
+[PRONTO (Naiche)] allocateBlock()
 
-[FAZENDO (Naiche)] Deletar conteúdo de arquivo com mesmo nome.
-          t2fs_delete()
-          tsfs_write()
-          allocateBlock()
+[PRONTO (Naiche)] t2fs_write() para ponteiros diretos
+
+[FAZENDO (Naiche)] t2fs_delete()
+		  t2fs_write() para indireção simples e dupla
+		  DeleteFileContent()
 
 [PRONTO (Guilherme)] t2fs_open
+[PRONTO (Naiche)] t2fs_open armazena endereço do arquivo no descritor
 
 [PRONTO (Guilherme)] t2fs_close
