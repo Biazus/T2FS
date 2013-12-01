@@ -24,6 +24,19 @@ char count_descritores = 0;
 t2fs_file next_handler = 0;
 
 
+Descritor* getDescritorByHandle(t2fs_file handle)
+{
+    int i;
+    for(i=0; i<count_descritores; i++)
+    {
+        if(descritores_abertos[i]->handler == handle){
+            return descritores_abertos[i];
+        }
+    }
+    return NULL;
+}
+
+
 int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bitmap
 {
     char block[blockSize];
@@ -66,12 +79,12 @@ int allocateBlock()    //Aloca um bloco da área de dados e índices retornando 
 
 	bitmapBlock = ctrlSize;
 	inicioDados = ctrlSize + freeBlockSize + rootSize;
-	
+
 	read_block(bitmapBlock, block);        //lê o bloco
 	for (i = inicioDados; i < diskSize; i++) //varre o bitmap
 	{
-		if (i > (bitmapBlock-ctrlSize+1)*blockSize*8)  //caso exista mais de um bloco de bitmap 
-		{	
+		if (i > (bitmapBlock-ctrlSize+1)*blockSize*8)  //caso exista mais de um bloco de bitmap
+		{
 			bitmapBlock++;
 			read_block(bitmapBlock, block);
 		}
@@ -79,7 +92,7 @@ int allocateBlock()    //Aloca um bloco da área de dados e índices retornando 
 		posBit = 7 - (i % 8);
 
 		auxByte = block[posByte] & (1 << posBit);
-		
+
 		printf("\nByte lido: %x - 1 desloc.: %x - posBit: %d - i: %d - posByte: %d", block[posByte], (1 << posBit), posBit, i, posByte);
 
 		if (auxByte == 0)
@@ -297,7 +310,7 @@ int t2fs_delete (char *nome)
 	GetDiskInformation();
 	//t2fs_first(findStruct);
 
-		
+
 	//percorrer inodes para atualizar bitmap
 	//colocar 0 no primeiro bit do nome do arquivo
 }
@@ -330,7 +343,7 @@ t2fs_file t2fs_open (char *nome)
                 printf("encontrado no bloco %d\n", lenBlkCtrl + iBloco);
                 Descritor* t = (Descritor*)malloc(sizeof(Descritor));
 				t->bloco = lenBlkCtrl + iBloco;
-				t->posNoBloco = i;              
+				t->posNoBloco = i;
 				t->currentPos = 0;
                 t->handler = next_handler;
 
@@ -415,7 +428,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 			else
 			{
 				//indireçao dupla
-			}			
+			}
 		}
 		else		//localiza o último bloco de dados do arquivo
 		{
@@ -428,7 +441,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 			{
 				int auxInd;
 				auxInd = descritores_abertos[handle]->record.singleIndPtr;   //bloco de índice (indireção simples)
-				char blockInd[blockSize];				
+				char blockInd[blockSize];
 				read_block(auxInd, blockInd);
 				auxInd = (tamAtual - 2*blockSize) / blockSize;
 				blockAddress = blockInd[auxInd];
@@ -437,7 +450,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 			{
 				//indireçao dupla
 			}
-			read_block(blockAddress, block);		//lê o último bloco			
+			read_block(blockAddress, block);		//lê o último bloco
 		}
 		while (addrPoint<blockSize && sizeLeft>0)
 		{
@@ -449,23 +462,35 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 		}
 		write_block(blockAddress, block);  //escreve no disco
 		tamAtual = tamOriginal + size - sizeLeft;
-	}	
+	}
 	descritores_abertos[handle]->record.bytesFileSize = tamAtual;
 	descritores_abertos[handle]->record.blocksFileSize = tamAtual / blockSize;
 	if (addrPoint<blockSize) descritores_abertos[handle]->record.blocksFileSize++; //atualiza descritor
-		
+
 	read_block(descritores_abertos[handle]->bloco, block);
-	//printf("Conteúdo: \n\n Bloco: %d", descritores_abertos[handle]->bloco);	
+	//printf("Conteúdo: \n\n Bloco: %d", descritores_abertos[handle]->bloco);
 	memcpy(block+descritores_abertos[handle]->posNoBloco, &(descritores_abertos[handle]->record), 64);
 	write_block(descritores_abertos[handle]->bloco, block);		//atualiza record no root
-	
+
 	return size;
 }
 
 //posiciona o contador na posiçao do offset dentro do arquivo
 int t2fs_seek (t2fs_file handle, unsigned int offset)
 {
-
+    Descritor* rec = getDescritorByHandle(handle);
+    if(rec == NULL)
+    {
+        printf("\n*******ERRO: Hande invalido!\n");
+        return -1;
+    }
+    if(Descritor->record.bytesFileSize > offset)
+    {
+        printf("\n*******ERRO: Offset invalido!\n");
+        return -1;
+    }
+    rec->currentPost = offset;
+    return 0;
 }
 
 //localiza o primeiro arquivo válido do diretório
