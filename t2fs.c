@@ -382,7 +382,7 @@ int t2fs_close (t2fs_file handle)
 
 int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do buffer no arquivo identificado por handle
 {
-	int tamAtual, blockAddress, i=0, sizeLeft, spaceLeft, addrPoint;
+	int tamAtual, blockAddress, i=0, j, sizeLeft, spaceLeft, addrPoint;
 	char block[blockSize];
 
 	int tamOriginal = descritores_abertos[handle]->record.bytesFileSize;
@@ -413,22 +413,36 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 				descritores_abertos[handle]->record.dataPtr[0]  = blockAddress;
 			else if (tamAtual < 2*blockSize)
 				descritores_abertos[handle]->record.dataPtr[1]  = blockAddress;
-			else if (tamAtual > 2*blockSize && tamAtual < (2+blockSize)*blockSize)
+			else if (tamAtual == 2*blockSize)// && tamAtual < (2+blockSize)*blockSize) //cria o bloco de índice da indireçao simples
 			{
 				int blockAddressInd;
 				blockAddressInd = allocateBlock();   //aloca bloco de índice (indireção simples)
-				if (blockAddress < 1)
+				if (blockAddressInd < 1)
 				{
-					printf("Erro ao alocar bloco.");
+					printf("Erro ao alocar bloco de índice.");
 					return -1;
 				}
 				descritores_abertos[handle]->record.singleIndPtr = blockAddressInd;
-				//gravar bloco de índice
+				
+				char blockPtr[blockSize];
+				blockPtr[0] = blockAddress;
+				for (j=1; j<blockSize; j++) blockPtr[j] = 0;
+				write_block(blockAddressInd, blockPtr);	//grava bloco de índice
+			}
+			else if ((tamAtual > 2*blockSize) && (tamAtual < (2+blockSize)*blockSize)) //usa o bloco de índice da indireçao simples
+			{
+				char blockPtr[blockSize];				
+				j = descritores_abertos[handle]->record.blocksFileSize - 2;
+				read_block(descritores_abertos[handle]->record.singleIndPtr, blockPtr);
+				blockPtr[j] = blockAddress;
+				printf("\nPtr:");
+				for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
+				write_block(descritores_abertos[handle]->record.singleIndPtr, blockPtr);	//grava bloco de índice
 			}
 			else
 			{
 				//indireçao dupla
-			}
+			}			
 		}
 		else		//localiza o último bloco de dados do arquivo
 		{
@@ -441,37 +455,41 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 			{
 				int auxInd;
 				auxInd = descritores_abertos[handle]->record.singleIndPtr;   //bloco de índice (indireção simples)
-				char blockInd[blockSize];
+				char blockInd[blockSize];				
 				read_block(auxInd, blockInd);
-				auxInd = (tamAtual - 2*blockSize) / blockSize;
+				//auxInd = (tamAtual - 2*blockSize) / blockSize;
+				auxInd = (descritores_abertos[handle]->record.blocksFileSize) - 3;
 				blockAddress = blockInd[auxInd];
+	printf("\nQtd. blocos: %d, auxInd: %d, blockAddress: %d", descritores_abertos[handle]->record.blocksFileSize, auxInd, blockAddress);
 			}
 			else
 			{
 				//indireçao dupla
 			}
-			read_block(blockAddress, block);		//lê o último bloco
+			read_block(blockAddress, block);		//lê o último bloco			
 		}
-		while (addrPoint<blockSize && sizeLeft>0)
+		printf("\n%d - ", blockAddress);
+		while (addrPoint<blockSize && sizeLeft>0) 		//preenche o bloco
 		{
 			block[addrPoint] = buffer[i];
+			printf("%c", buffer[i]);
 			i++;
 			addrPoint++;
 			sizeLeft--;
 			spaceLeft--;
 		}
-		write_block(blockAddress, block);  //escreve no disco
+		write_block(blockAddress, block);  //escreve dados no disco
 		tamAtual = tamOriginal + size - sizeLeft;
-	}
+	}	
 	descritores_abertos[handle]->record.bytesFileSize = tamAtual;
 	descritores_abertos[handle]->record.blocksFileSize = tamAtual / blockSize;
 	if (addrPoint<blockSize) descritores_abertos[handle]->record.blocksFileSize++; //atualiza descritor
-
+		
 	read_block(descritores_abertos[handle]->bloco, block);
-	//printf("Conteúdo: \n\n Bloco: %d", descritores_abertos[handle]->bloco);
+	//printf("Conteúdo: \n\n Bloco: %d", descritores_abertos[handle]->bloco);	
 	memcpy(block+descritores_abertos[handle]->posNoBloco, &(descritores_abertos[handle]->record), 64);
 	write_block(descritores_abertos[handle]->bloco, block);		//atualiza record no root
-
+	
 	return size;
 }
 
