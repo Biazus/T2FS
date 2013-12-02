@@ -506,6 +506,55 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 	return size;
 }
 
+int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arquivo identificado por handle para o buffer
+{
+	int posAtual, tamanho, bytesLidos=0, blocoLido=0, posNoBloco, blockAddress;
+	char block[blockSize];
+
+	Descritor* arquivo = descritores_abertos[handle];
+	tamanho = arquivo->record.bytesFileSize;
+	posAtual = arquivo->currentPos;
+
+	while (size>0)
+	{
+		if (!blocoLido)  //carrega o bloco atual
+		{	
+			posNoBloco = posAtual % blockSize;
+			if (posAtual<blockSize)
+				blockAddress = arquivo->record.dataPtr[0];
+			else if (posAtual < 2*blockSize)
+				blockAddress = arquivo->record.dataPtr[1];
+			else if (posAtual > 2*blockSize && posAtual < (2+blockSize)*blockSize)
+			{
+				int auxInd;
+				auxInd = arquivo->record.singleIndPtr;   //bloco de índice (indireção simples)
+				char blockInd[blockSize];				
+				read_block(auxInd, blockInd);
+				auxInd = posAtual/blockSize - 2;
+				blockAddress = blockInd[auxInd];
+			}
+			else
+			{
+				//indireçao dupla
+			}
+			read_block(blockAddress, block);		//lê o bloco atual			
+			blocoLido = 1;
+		}
+		
+		buffer[bytesLidos] = block[posNoBloco];
+		
+		posAtual++;
+		posNoBloco++;			//Atualiza flags
+		if (posNoBloco > blockSize)
+			blocoLido = 0;
+		bytesLidos++;
+		size--;
+	}
+
+	arquivo->currentPos = posAtual;
+	printf("\nTamanho do arquivo: %d", arquivo->record.bytesFileSize);
+	return bytesLidos;
+}
 
 //posiciona o contador na posiçao do offset dentro do arquivo
 int t2fs_seek (t2fs_file handle, unsigned int offset)
