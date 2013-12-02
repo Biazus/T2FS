@@ -13,7 +13,7 @@ T2FS
 
 [PRONTO (Naiche)] t2fs_delete() até indireção simples
 
-[FAZENDO (Naiche)] t2fs_read()
+[PRONTO (Naiche)] t2fs_read() até indireção simples
 		  
 [PRONTO (Guilherme)] t2fs_open
 [PRONTO (Naiche)] t2fs_open armazena endereço do arquivo no descritor
