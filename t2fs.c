@@ -137,34 +137,6 @@ int fileExists(char *nome, int *posicao)
 }
 
 
-int DeleteFileContent(int bloco, int posicao)  //apaga o conteúdo de um arquivo
-{
-	if (bloco < ctrlSize || bloco > (ctrlSize + rootSize - 1))
-	{
-		printf ("Endereço de arquivo fora do diretório raiz\n");
-		return 0;
-	}
-
-	//implementar atualizacao do bitmap
-
-	printf("\nDeletando posição %d do Bloco %d\n", posicao, bloco);
-
-	char block[blockSize];
-	int iBloco, posByte, i;
-
-    read_block(bloco, block);        //lê o bloco
-
-	for(i = posicao+40; i<posicao+48; i++)
-	{
-		block[i] = 0;   //zera o tamanho em blocos (40) e em bytes (44)
-	}
-
-	write_block(bloco, block);       //escreve no disco
-
-	return 1;
-}
-
-
 void InvalidateRootDirectory()
 {
     int i=0, dirty = 0, iBloco = 0, lengthBlocoControl = 0;
@@ -308,12 +280,52 @@ t2fs_file t2fs_create (char *nome)
 int t2fs_delete (char *nome)
 {
 	GetDiskInformation();
-	//t2fs_first(findStruct);
+	char block[blockSize];
+	
+	int hndl, qtdBlocos, i=0;
+	hndl = t2fs_open(nome);
+	qtdBlocos = descritores_abertos[hndl]->record.blocksFileSize;
 
+	while(qtdBlocos > 0 && i<2)
+	{
+		setBitBitmap(descritores_abertos[hndl]->record.dataPtr[i], 0);
+		i++;		
+		qtdBlocos--;
+	}
+	
+	i = 0;
+	if(qtdBlocos > 0)
+	{
+		setBitBitmap(descritores_abertos[hndl]->record.singleIndPtr, 0);
+		read_block(descritores_abertos[hndl]->record.singleIndPtr, block);
+		while(qtdBlocos > 0 && i<blockSize)
+		{
+			setBitBitmap(block[i], 0);
+			i++;		
+			qtdBlocos--;
+		}
+	}
 
-	//percorrer inodes para atualizar bitmap
-	//colocar 0 no primeiro bit do nome do arquivo
+	i = 0;
+	if(qtdBlocos > 0)
+	{
+		setBitBitmap(descritores_abertos[hndl]->record.doubleIndPtr, 0);
+		read_block(descritores_abertos[hndl]->record.doubleIndPtr, block);
+		/*while(qtdBlocos > 0 && i<blockSize)     //liberar blocos de indirecao dupla
+		{
+			setBitBitmap(block[i], 0);
+			i++;		
+			qtdBlocos--;
+		}*/
+	}
+	
+	read_block(descritores_abertos[hndl]->bloco, block);	
+	block[descritores_abertos[hndl]->posNoBloco] = 0;	//colocar 0 no primeiro bit do nome do arquivo
+	write_block(descritores_abertos[hndl]->bloco, block);	
+	
+	t2fs_close(hndl);
 }
+
 
 t2fs_file t2fs_open (char *nome)
 {
