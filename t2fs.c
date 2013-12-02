@@ -408,6 +408,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 				printf("Erro ao alocar bloco.");
 				return -1;
 			}
+			descritores_abertos[handle]->record.blocksFileSize++;
 			spaceLeft = blockSize;
 			if (tamAtual==0)
 				descritores_abertos[handle]->record.dataPtr[0]  = blockAddress;
@@ -432,10 +433,10 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 			else if ((tamAtual > 2*blockSize) && (tamAtual < (2+blockSize)*blockSize)) //usa o bloco de índice da indireçao simples
 			{
 				char blockPtr[blockSize];				
-				j = descritores_abertos[handle]->record.blocksFileSize - 2;
+				j = descritores_abertos[handle]->record.blocksFileSize - 3;
 				read_block(descritores_abertos[handle]->record.singleIndPtr, blockPtr);
 				blockPtr[j] = blockAddress;
-				printf("\nPtr:");
+				printf("\n%d Ptr:", j);
 				for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
 				write_block(descritores_abertos[handle]->record.singleIndPtr, blockPtr);	//grava bloco de índice
 			}
@@ -492,6 +493,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 	
 	return size;
 }
+
 
 //posiciona o contador na posiçao do offset dentro do arquivo
 int t2fs_seek (t2fs_file handle, unsigned int offset)
