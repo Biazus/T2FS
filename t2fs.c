@@ -55,16 +55,14 @@ int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bi
 
 	char auxByte;
 	auxByte = block[posByte];
-	printf("\nBloco antes: %x - 1 deslocado: %d - posBit: %d ", block[posByte], (1 << posBit), posBit);
+	//printf("\nBloco antes: %x - 1 deslocado: %d - posBit: %d ", block[posByte], (1 << posBit), posBit);
 	if (ocupado)
 		block[posByte] = auxByte | (1 << posBit);
 	else
 		block[posByte] = auxByte & (254 << posBit);
 
-	printf("\nBloco depois: %x ", block[posByte]);
-	//block[posByte] = ; //setar o bit
-
-	printf(" - Bit %d do byte: %d\n", posBit, posByte);
+	//printf("\nBloco depois: %x ", block[posByte]);
+	//printf(" - Bit %d do byte: %d\n", posBit, posByte);
 
 	write_block(iBloco, block);       //escreve no disco
 
@@ -93,7 +91,7 @@ int allocateBlock()    //Aloca um bloco da área de dados e índices retornando 
 
 		auxByte = block[posByte] & (1 << posBit);
 
-		printf("\nByte lido: %x - 1 desloc.: %x - posBit: %d - i: %d - posByte: %d", block[posByte], (1 << posBit), posBit, i, posByte);
+		//printf("\nByte lido: %x - 1 desloc.: %x - posBit: %d - i: %d - posByte: %d", block[posByte], (1 << posBit), posBit, i, posByte);
 
 		if (auxByte == 0)
 		{
@@ -213,7 +211,7 @@ int InsertFileRecord(t2fs_record* record)
         }
         if(dirty)
         {
-            printf("Salvo no bloco %d\n", lenBlkCtrl + iBloco);
+            //printf("Salvo no bloco %d\n", lenBlkCtrl + iBloco);
             write_block(lenBlkCtrl + iBloco, block);       //escreve no disco
 			setBitBitmap(iBloco + lenBlkCtrl, 1);
 			break;
@@ -448,8 +446,8 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 				j = descritores_abertos[handle]->record.blocksFileSize - 3;
 				read_block(descritores_abertos[handle]->record.singleIndPtr, blockPtr);
 				blockPtr[j] = blockAddress;
-				printf("\n%d Ptr:", j);
-				for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
+				//printf("\n%d Ptr:", j);
+				//for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
 				write_block(descritores_abertos[handle]->record.singleIndPtr, blockPtr);	//grava bloco de índice
 			}
 			else
@@ -485,7 +483,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 		while (addrPoint<blockSize && sizeLeft>0) 		//preenche o bloco
 		{
 			block[addrPoint] = buffer[i];
-			printf("%c", buffer[i]);
+			//printf("%c", buffer[i]);
 			i++;
 			addrPoint++;
 			sizeLeft--;
@@ -565,12 +563,12 @@ int t2fs_seek (t2fs_file handle, unsigned int offset)
         printf("\n*******ERRO: Hande invalido!\n");
         return -1;
     }
-    if(Descritor->record.bytesFileSize > offset)
+    if(rec->record.bytesFileSize > offset)
     {
         printf("\n*******ERRO: Offset invalido!\n");
         return -1;
     }
-    rec->currentPost = offset;
+    rec->currentPos = offset;
     return 0;
 }
 
