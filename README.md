@@ -9,11 +9,12 @@ T2FS
 [PRONTO (Naiche)] allocateBlock()
 
 [PRONTO (Naiche)] t2fs_write() para ponteiros diretos
+[PRONTO (Naiche)] t2fs_write() para indireção simples
 
-[FAZENDO (Naiche)] t2fs_delete()
-		  t2fs_write() para indireção simples e dupla
-		  DeleteFileContent()
+[PRONTO (Naiche)] t2fs_delete() até indireção simples
 
+[FAZENDO (Naiche)] t2fs_read()
+		  
 [PRONTO (Guilherme)] t2fs_open
 [PRONTO (Naiche)] t2fs_open armazena endereço do arquivo no descritor
 
