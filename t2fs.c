@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "t2fs.h"
 
@@ -23,6 +24,23 @@ Descritor* descritores_abertos[20];
 char count_descritores = 0;
 t2fs_file next_handler = 0;
 
+char* ExtendName(char *nome)
+{
+    char* extName = (char *)malloc(40);
+    int i = 0;
+
+    while (nome[i] != 0)
+    {
+		extName[i] = nome[i];
+		i++;
+	}
+	while (i<40)
+    {
+		extName[i] = 0;
+		i++;
+	}
+	return (extName);
+}
 
 Descritor* getDescritorByHandle(t2fs_file handle)
 {
@@ -30,6 +48,24 @@ Descritor* getDescritorByHandle(t2fs_file handle)
     for(i=0; i<count_descritores; i++)
     {
         if(descritores_abertos[i]->handler == handle){
+            return descritores_abertos[i];
+        }
+    }
+    return NULL;
+}
+
+Descritor* getDescritorByName(char* nome)
+{
+    int i;
+	nome = ExtendName(nome);
+    for(i=0; i<count_descritores; i++)
+    {
+		char nomet[40];
+		strcpy(nomet, descritores_abertos[i]->record.name);
+		nomet[0] -= 128;
+		//printf("testando: %s - %s", nomet, nome);
+        if(!strcmp(nomet, nome)){
+			//printf("Achou %d", i);
             return descritores_abertos[i];
         }
     }
@@ -75,7 +111,8 @@ int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bi
 int allocateBlock()    //Aloca um bloco da área de dados e índices retornando seu endereço
 {
 	char block[blockSize], auxByte;
-	int i, posByte, posBit, bitmapBlock, inicioDados;
+	int i;
+	int posByte, posBit, bitmapBlock, inicioDados;
 
 	bitmapBlock = ctrlSize;
 	inicioDados = ctrlSize + freeBlockSize + rootSize;
@@ -106,7 +143,7 @@ int allocateBlock()    //Aloca um bloco da área de dados e índices retornando 
 }
 
 
-int fileExists(char *nome, int *posicao)
+int fileExists(char *nome, int *posicao)	//testa se já existe arquivo com o este nome no root e retorna posicao de seu bloco
 {
     int i=0, iBloco = 0, lenBlkCtrl = 0;
 	int j;
@@ -223,23 +260,6 @@ int InsertFileRecord(t2fs_record* record)
     return 0;
 }
 
-char* ExtendName(char *nome)
-{
-    char* extName = (char *)malloc(40);
-    int i = 0;
-
-    while (nome[i] != 0)
-    {
-		extName[i] = nome[i];
-		i++;
-	}
-	while (i<40)
-    {
-		extName[i] = 0;
-		i++;
-	}
-	return (extName);
-}
 
 t2fs_file t2fs_create (char *nome)
 {
@@ -276,9 +296,12 @@ t2fs_file t2fs_create (char *nome)
     t->handler = next_handler;
 
     next_handler++;
-
+	
     descritores_abertos[count_descritores] = t;
     count_descritores++;
+
+	//printf("Tamanho em blocos: %d", t->record.blocksFileSize);
+	//printf("Tamanho em blocos: %d", descritores_abertos[count_descritores]->record.blocksFileSize);
 
     return t->handler;
 }
@@ -289,11 +312,23 @@ int t2fs_delete (char *nome)
 	GetDiskInformation();
 	char block[blockSize];
 	
+	unsigned short pos;
 	int hndl, qtdBlocos, i=0;
-	hndl = t2fs_open(nome);
-	if (hndl<0) return -1;
 
-	Descritor* arquivo = getDescritorByHandle(hndl);
+    Descritor* arquivo = getDescritorByName(nome); //se arquivo já estiver aberto, nao abre de novo
+	if (arquivo == NULL)
+	{	
+		//printf("Abrindo arquivo.");
+		hndl = t2fs_open(nome);
+		arquivo = getDescritorByHandle(hndl);
+		if (hndl<0) return -1;
+	}
+	else
+	{
+		hndl = arquivo->handler;
+		//printf("\nHandle do arquivo a excluir: %d", hndl);
+	}
+
 	qtdBlocos = arquivo->record.blocksFileSize;
 
 	while(qtdBlocos > 0 && i<2)
@@ -310,7 +345,10 @@ int t2fs_delete (char *nome)
 		read_block(arquivo->record.singleIndPtr, block);
 		while(qtdBlocos > 0 && i<blockSize)
 		{
-			setBitBitmap(block[i], 0);
+			pos = (int)(block[i]);
+			if (pos>127) pos += 256;
+			//printf("\napagando bloco: %d - %d", block[i], pos);
+			setBitBitmap(pos, 0);
 			i++;		
 			qtdBlocos--;
 		}
@@ -334,6 +372,7 @@ int t2fs_delete (char *nome)
 	write_block(arquivo->bloco, block);	
 	
 	t2fs_close(hndl);
+	return 1;
 }
 
 
@@ -362,7 +401,7 @@ t2fs_file t2fs_open (char *nome)
             //printf("i = %d arquivo: %s e Nome pesquisa: %s\n", i, block + i, nome);
             if(strcmp(block + i, nome) == 0)  //compara pelo nome
             {
-                printf("encontrado no bloco %d\n", lenBlkCtrl + iBloco);
+                //printf("encontrado no bloco %d\n", lenBlkCtrl + iBloco);
                 Descritor* t = (Descritor*)malloc(sizeof(Descritor));
 				t->bloco = lenBlkCtrl + iBloco;
 				t->posNoBloco = i;
@@ -400,15 +439,98 @@ int t2fs_close (t2fs_file handle)
     }
 }
 
+int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
+{
+	//printf("ABA:");
+	int blockAddress,j;
+	blockAddress = allocateBlock();
+	if (blockAddress < 1)
+	{
+		return -1;
+	}
+	arquivo->record.blocksFileSize++;
+	
+	if (tamAtual==0)
+		arquivo->record.dataPtr[0]  = blockAddress;
+	else if (tamAtual < 2*blockSize)
+		arquivo->record.dataPtr[1]  = blockAddress;
+	else if (tamAtual == 2*blockSize) //cria o bloco de índice da indireçao simples
+	{
+		int blockAddressInd;
+		blockAddressInd = allocateBlock();   //aloca bloco de índice (indireção simples)
+		if (blockAddressInd < 1)
+		{
+			return -1;
+		}
+		arquivo->record.singleIndPtr = blockAddressInd;
+		
+		char blockPtr[blockSize];
+		blockPtr[0] = blockAddress;
+		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
+		write_block(blockAddressInd, blockPtr);	//grava bloco de índice
+	}
+	else if ((tamAtual > 2*blockSize) && (tamAtual < (2+blockSize)*blockSize)) //usa o bloco de índice da indireçao simples
+	{
+		char blockPtr[blockSize];				
+		j = arquivo->record.blocksFileSize - 3;
+		read_block(arquivo->record.singleIndPtr, blockPtr);
+		blockPtr[j] = blockAddress;
+		//printf("\n%d Ptr:", j);
+		//for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
+		write_block(arquivo->record.singleIndPtr, blockPtr);	//grava bloco de índice
+	}
+	else
+	{
+		//indireçao dupla
+	}
+	//printf("aba: %d", blockAddress);
+	return blockAddress;
+}
+
+
+int localizarBlocoCorrente(Descritor* arquivo, int posAtual)
+{
+	int blockAddress;
+	if (posAtual<blockSize)
+		blockAddress = arquivo->record.dataPtr[0];
+	else if (posAtual < 2*blockSize)
+		blockAddress = arquivo->record.dataPtr[1];
+	else if (posAtual > 2*blockSize && posAtual < (2+blockSize)*blockSize)	//caso a posicao atual esteja na indirecao simples
+	{
+		int auxInd;
+		auxInd = arquivo->record.singleIndPtr;   //bloco de índice (indireção simples)
+		char blockInd[blockSize];				
+		read_block(auxInd, blockInd);
+		//auxInd = (tamAtual - 2*blockSize) / blockSize;
+		auxInd = posAtual/blockSize -2; //(arquivo->record.blocksFileSize) - 3;
+		blockAddress = blockInd[auxInd];
+		//printf("\nQtd. blocos: %d, auxInd: %d, blockAddress: %d", arquivo->record.blocksFileSize, auxInd, blockAddress);
+	}
+	else
+	{
+		//indireçao dupla
+	}
+	//printf("LBC: %d", blockAddress);
+	return blockAddress;
+}
+
+
 int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do buffer no arquivo identificado por handle
 {
-	int tamAtual, blockAddress, i=0, j, sizeLeft, spaceLeft, addrPoint, posAtual;
+	int blockAddress, i=0, j, sizeLeft, spaceLeft, addrPoint, posAtual;
 	char block[blockSize];
 
 	Descritor* arquivo = getDescritorByHandle(handle);
-	posAtual = arquivo->currentPos;
+	posAtual = arquivo->currentPos;     //posicao corrente no arquivo
+	//printf("\nPosAtual: %d\n", posAtual);
+	int tamOriginal = arquivo->record.bytesFileSize; //tamanho do arquivo antes da gravacao
 
-	int tamOriginal = arquivo->record.bytesFileSize;
+	int tamFinal = tamOriginal - posAtual + size; //so pra testtar se o arquivo nao vai ficar grande demais
+	if (tamFinal > (diskSize-ctrlSize-freeBlockSize-rootSize)*blockSize)
+	{
+		printf("\nArquivo grande demais para o disco.");
+		return -1;
+	}
 
 	if (size + tamOriginal > 2*blockSize + blockSize*blockSize + blockSize*blockSize*blockSize)
 	{
@@ -416,103 +538,55 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 		return -1;
 	}
 
-	sizeLeft = size;
-	spaceLeft = (arquivo->record.blocksFileSize * blockSize) - arquivo->record.bytesFileSize;
-	tamAtual = arquivo->record.bytesFileSize;
+	sizeLeft = size;    //quantos bytes ainda falta escrever
+	spaceLeft = (arquivo->record.blocksFileSize * blockSize) - posAtual;  //espaço restante nos blocos alocados para o arquivo desde a posAtual
 
 	while (sizeLeft >0)
 	{
 		if (spaceLeft == 0)		//alocar um bloco de dados
 		{
-			addrPoint = 0;
-			blockAddress = allocateBlock();
+			blockAddress = alocarBlocoParaArquivo(arquivo, posAtual);
 			if (blockAddress < 1)
 			{
 				printf("Erro ao alocar bloco.");
 				return -1;
 			}
-			arquivo->record.blocksFileSize++;
+			addrPoint = 0;
 			spaceLeft = blockSize;
-			if (tamAtual==0)
-				arquivo->record.dataPtr[0]  = blockAddress;
-			else if (tamAtual < 2*blockSize)
-				arquivo->record.dataPtr[1]  = blockAddress;
-			else if (tamAtual == 2*blockSize) //cria o bloco de índice da indireçao simples
-			{
-				int blockAddressInd;
-				blockAddressInd = allocateBlock();   //aloca bloco de índice (indireção simples)
-				if (blockAddressInd < 1)
-				{
-					printf("Erro ao alocar bloco de índice.");
-					return -1;
-				}
-				arquivo->record.singleIndPtr = blockAddressInd;
-				
-				char blockPtr[blockSize];
-				blockPtr[0] = blockAddress;
-				for (j=1; j<blockSize; j++) blockPtr[j] = 0;
-				write_block(blockAddressInd, blockPtr);	//grava bloco de índice
-			}
-			else if ((tamAtual > 2*blockSize) && (tamAtual < (2+blockSize)*blockSize)) //usa o bloco de índice da indireçao simples
-			{
-				char blockPtr[blockSize];				
-				j = arquivo->record.blocksFileSize - 3;
-				read_block(arquivo->record.singleIndPtr, blockPtr);
-				blockPtr[j] = blockAddress;
-				//printf("\n%d Ptr:", j);
-				//for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
-				write_block(arquivo->record.singleIndPtr, blockPtr);	//grava bloco de índice
-			}
-			else
-			{
-				//indireçao dupla
-			}			
 		}
 		else		//localiza o bloco de dados da posicao atual
 		{
-			addrPoint = tamAtual % blockSize;
-			if (tamAtual<blockSize)
-				blockAddress = arquivo->record.dataPtr[0];
-			else if (tamAtual < 2*blockSize)
-				blockAddress = arquivo->record.dataPtr[1];
-			else if (tamAtual > 2*blockSize && tamAtual < (2+blockSize)*blockSize)
-			{
-				int auxInd;
-				auxInd = arquivo->record.singleIndPtr;   //bloco de índice (indireção simples)
-				char blockInd[blockSize];				
-				read_block(auxInd, blockInd);
-				//auxInd = (tamAtual - 2*blockSize) / blockSize;
-				auxInd = (arquivo->record.blocksFileSize) - 3;
-				blockAddress = blockInd[auxInd];
-				//printf("\nQtd. blocos: %d, auxInd: %d, blockAddress: %d", arquivo->record.blocksFileSize, auxInd, blockAddress);
-			}
-			else
-			{
-				//indireçao dupla
-			}
+			addrPoint = posAtual % blockSize;
+			blockAddress = localizarBlocoCorrente(arquivo, posAtual);
 			read_block(blockAddress, block);		//lê o último bloco			
 		}
+
 		//printf("\n%d - ", blockAddress);
 		while (addrPoint<blockSize && sizeLeft>0) 		//preenche o bloco
 		{
 			block[addrPoint] = buffer[i];
 			//printf("%c", buffer[i]);
 			i++;
+			posAtual++;
 			addrPoint++;
 			sizeLeft--;
 			spaceLeft--;
 		}
 		write_block(blockAddress, block);  //escreve dados no disco
-		tamAtual = tamOriginal + size - sizeLeft;
 	}	
-	arquivo->record.bytesFileSize = tamAtual;
-	arquivo->record.blocksFileSize = tamAtual / blockSize;
+	arquivo->currentPos = posAtual;	
+	
+	if (posAtual > tamOriginal)
+	{
+		arquivo->record.bytesFileSize = posAtual;
+	}	
+	arquivo->record.blocksFileSize = arquivo->record.bytesFileSize / blockSize;
 	if (addrPoint<blockSize) arquivo->record.blocksFileSize++; //atualiza descritor
-		
+
 	read_block(arquivo->bloco, block);
 	//printf("Conteúdo: \n\n Bloco: %d", arquivo->bloco);	
 	memcpy(block+arquivo->posNoBloco, &(arquivo->record), 64);
-	write_block(arquivo->bloco, block);		//atualiza record no root
+	write_block(arquivo->bloco, block);							//atualiza registro no root
 	
 	return size;
 }
@@ -566,9 +640,10 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 	}
 
 	arquivo->currentPos = posAtual;
-	printf("\nTamanho do arquivo: %d", arquivo->record.bytesFileSize);
+	//printf("\nTamanho do arquivo: %d", arquivo->record.bytesFileSize);
 	return bytesLidos;
 }
+
 
 //posiciona o contador na posiçao do offset dentro do arquivo
 int t2fs_seek (t2fs_file handle, unsigned int offset)

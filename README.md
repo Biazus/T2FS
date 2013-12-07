@@ -21,3 +21,13 @@ T2FS
 [PRONTO (Naiche)] t2fs_open armazena endereço do arquivo no descritor
 
 [PRONTO (Guilherme)] t2fs_close
+
+[PRONTO (Naiche)] Correções para arquivos grandes
+[PRONTO (Naiche)] escrita reestruturada 
+[PRONTO (Naiche)] correção dos WARNINGS. 
+
+[DEVE SER FEITO] Nao deixar abrir mais de uma vez o mesmo arquivo antes de fechá-lo.
+[DEVE SER FEITO] Corrigir o t2fs_create que nao está salvando os dados no vetor descritores_abertos corretamente
+[DEVE SER FEITO] findStruct
+[DEVE SER FEITO] t2fs_first
+[DEVE SER FEITO] t2fs_next
