@@ -55,7 +55,7 @@ int main()
 	printf("\n\n");
 	for(i=0; i<1000; i++) printf("%c", buffer[i]);
 
-	t2fs_seek(hndl, 20000);
+	t2fs_seek(hndl, 58500);
 	t2fs_read(hndl, buffer, 1000);
 	printf("\n\n");
 	for(i=0; i<1000; i++) printf("%c", buffer[i]);
