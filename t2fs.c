@@ -619,6 +619,8 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 				read_block(auxInd, blockInd);
 				auxInd = posAtual/blockSize - 2;
 				blockAddress = blockInd[auxInd];
+				if (blockAddress<0) blockAddress += 256;
+				//printf(" - %d ", blockAddress);
 			}
 			else
 			{
