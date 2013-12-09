@@ -507,21 +507,23 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
 		write_block(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
 	}
-
-	else if (tamAtual > (2+blockSize)*blockSize && (tamAtual % (blockSize*blockSize) == 0))  
+	else if (tamAtual > (2+blockSize)*blockSize && (tamAtual % (blockSize*blockSize) == 0)) 
 	{		//aloca o bloco de índices de nivel 2 da indireção dupla
-		int blockAddressInd;
-		blockAddressInd = allocateBlock();   //aloca bloco de índice (indireção simples)
-		if (blockAddressInd < 1)
+		int blockAddressInd2, posInd1;
+		blockAddressInd2 = allocateBlock();   //aloca bloco de índice nivel 2 (indireção dupla)
+		if (blockAddressInd2 < 1)
 		{
 			return -1;
 		}
-		arquivo->record.singleIndPtr = blockAddressInd;
-
+		posInd1 = (arquivo->record.blocksFileSize - blockSize - 2)/blockSize;
 		char blockPtr[blockSize];
+		read_block(arquivo->record.doubleIndPtr, blockPtr);
+		blockPtr[posInd1] = blockAddressInd2
+		write_block(arquivo->record.doubleIndPtr, blockPtr);	//grava bloco de índice nivel 1
+
 		blockPtr[0] = blockAddress;
 		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
-		write_block(blockAddressInd, blockPtr);	//grava bloco de índice
+		write_block(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
 	}
 	else	//usa indireçao dupla
 	{
