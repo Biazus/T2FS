@@ -525,14 +525,19 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
 		write_block(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
 	}
-	else	//usa indireçao dupla
-	{
-		char blockPtr[blockSize];
-		j = arquivo->record.blocksFileSize - 3;
-		read_block(arquivo->record.singleIndPtr, blockPtr);
-		blockPtr[j] = blockAddress;
-		write_block(arquivo->record.singleIndPtr, blockPtr);	//grava bloco de índice
-	}
+	else        //usa indireçao dupla
+        {
+                int iAux, pos, pos2;
+                pos = (arquivo->record.blocksFileSize - blockSize - 2)/blockSize;
+                pos2 = tamAtual % blockSize;
+                char blockPtr[blockSize];    //bloco de índice nivel 2
+
+                read_block(arquivo->record.doubleIndPtr, blockPtr);  //lê bloco de índice nível 1
+                iAux = blockPtr[pos];
+                read_block(iAux, blockPtr);     //lê bloco de índice nível 2
+                blockPtr[pos2] = blockAddress;
+                write_block(iAux, blockPtr);        //grava bloco de índice nível 2
+        }
 	//printf("aba: %d", blockAddress);
 	return blockAddress;
 }
