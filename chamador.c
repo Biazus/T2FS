@@ -117,7 +117,6 @@ int main()
 	printf ("Diretorio vazio.\n");
 	else
 	printf ("\nEncontrados %d arquivos.\n\n", count);
-	sair();
 
 	t2fs_delete("Arquivo1");
 	retorno = t2fs_open("Arquivo1");
