@@ -7,6 +7,8 @@
 ***************************************************/
 typedef struct
 {
+    int currentBlock;
+    unsigned char posInBlock;
 } t2fs_find;
 
 /**************************************

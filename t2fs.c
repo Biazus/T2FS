@@ -271,7 +271,7 @@ t2fs_file t2fs_create (char *nome)
         return -1;
     }
 
-	int retorno;	
+	int retorno;
 	retorno = t2fs_delete(nome);
 	if (retorno == 0)
 	{
@@ -296,7 +296,7 @@ t2fs_file t2fs_create (char *nome)
     t->handler = next_handler;
 
     next_handler++;
-	
+
     descritores_abertos[count_descritores] = t;
     count_descritores++;
 
@@ -311,13 +311,13 @@ int t2fs_delete (char *nome)
 {
 	GetDiskInformation();
 	char block[blockSize];
-	
+
 	unsigned short pos;
 	int hndl, qtdBlocos, i=0;
 
     Descritor* arquivo = getDescritorByName(nome); //se arquivo já estiver aberto, nao abre de novo
 	if (arquivo == NULL)
-	{	
+	{
 		//printf("Abrindo arquivo.");
 		hndl = t2fs_open(nome);
 		arquivo = getDescritorByHandle(hndl);
@@ -334,10 +334,10 @@ int t2fs_delete (char *nome)
 	while(qtdBlocos > 0 && i<2)
 	{
 		setBitBitmap(arquivo->record.dataPtr[i], 0);
-		i++;		
+		i++;
 		qtdBlocos--;
 	}
-	
+
 	i = 0;
 	if(qtdBlocos > 0)
 	{
@@ -349,7 +349,7 @@ int t2fs_delete (char *nome)
 			if (pos>127) pos += 256;
 			//printf("\napagando bloco: %d - %d", block[i], pos);
 			setBitBitmap(pos, 0);
-			i++;		
+			i++;
 			qtdBlocos--;
 		}
 	}
@@ -362,15 +362,15 @@ int t2fs_delete (char *nome)
 		/*while(qtdBlocos > 0 && i<blockSize)     //liberar blocos de indirecao dupla
 		{
 			setBitBitmap(block[i], 0);
-			i++;		
+			i++;
 			qtdBlocos--;
 		}*/
 	}
-	
-	read_block(arquivo->bloco, block);	
+
+	read_block(arquivo->bloco, block);
 	block[arquivo->posNoBloco] = 0;	//colocar 0 no primeiro bit do nome do arquivo
-	write_block(arquivo->bloco, block);	
-	
+	write_block(arquivo->bloco, block);
+
 	t2fs_close(hndl);
 	return 1;
 }
@@ -449,7 +449,7 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		return -1;
 	}
 	arquivo->record.blocksFileSize++;
-	
+
 	if (tamAtual==0)
 		arquivo->record.dataPtr[0]  = blockAddress;
 	else if (tamAtual < 2*blockSize)
@@ -463,7 +463,7 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 			return -1;
 		}
 		arquivo->record.singleIndPtr = blockAddressInd;
-		
+
 		char blockPtr[blockSize];
 		blockPtr[0] = blockAddress;
 		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
@@ -471,7 +471,7 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 	}
 	else if ((tamAtual > 2*blockSize) && (tamAtual < (2+blockSize)*blockSize)) //usa o bloco de índice da indireçao simples
 	{
-		char blockPtr[blockSize];				
+		char blockPtr[blockSize];
 		j = arquivo->record.blocksFileSize - 3;
 		read_block(arquivo->record.singleIndPtr, blockPtr);
 		blockPtr[j] = blockAddress;
@@ -499,7 +499,7 @@ int localizarBlocoCorrente(Descritor* arquivo, int posAtual)
 	{
 		int auxInd;
 		auxInd = arquivo->record.singleIndPtr;   //bloco de índice (indireção simples)
-		char blockInd[blockSize];				
+		char blockInd[blockSize];
 		read_block(auxInd, blockInd);
 		//auxInd = (tamAtual - 2*blockSize) / blockSize;
 		auxInd = posAtual/blockSize -2; //(arquivo->record.blocksFileSize) - 3;
@@ -558,7 +558,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 		{
 			addrPoint = posAtual % blockSize;
 			blockAddress = localizarBlocoCorrente(arquivo, posAtual);
-			read_block(blockAddress, block);		//lê o último bloco			
+			read_block(blockAddress, block);		//lê o último bloco
 		}
 
 		//printf("\n%d - ", blockAddress);
@@ -573,21 +573,21 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 			spaceLeft--;
 		}
 		write_block(blockAddress, block);  //escreve dados no disco
-	}	
-	arquivo->currentPos = posAtual;	
-	
+	}
+	arquivo->currentPos = posAtual;
+
 	if (posAtual > tamOriginal)
 	{
 		arquivo->record.bytesFileSize = posAtual;
-	}	
+	}
 	arquivo->record.blocksFileSize = arquivo->record.bytesFileSize / blockSize;
 	if (addrPoint<blockSize) arquivo->record.blocksFileSize++; //atualiza descritor
 
 	read_block(arquivo->bloco, block);
-	//printf("Conteúdo: \n\n Bloco: %d", arquivo->bloco);	
+	//printf("Conteúdo: \n\n Bloco: %d", arquivo->bloco);
 	memcpy(block+arquivo->posNoBloco, &(arquivo->record), 64);
 	write_block(arquivo->bloco, block);							//atualiza registro no root
-	
+
 	return size;
 }
 
@@ -605,7 +605,7 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 	while (size>0)
 	{
 		if (!blocoLido)  //carrega o bloco atual
-		{	
+		{
 			posNoBloco = posAtual % blockSize;
 			if (posAtual<blockSize)
 				blockAddress = arquivo->record.dataPtr[0];
@@ -615,7 +615,7 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 			{
 				int auxInd;
 				auxInd = arquivo->record.singleIndPtr;   //bloco de índice (indireção simples)
-				char blockInd[blockSize];				
+				char blockInd[blockSize];
 				read_block(auxInd, blockInd);
 				auxInd = posAtual/blockSize - 2;
 				blockAddress = blockInd[auxInd];
@@ -626,11 +626,11 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 			{
 				//indireçao dupla
 			}
-			read_block(blockAddress, block);		//lê o bloco atual			
+			read_block(blockAddress, block);		//lê o bloco atual
 			blocoLido = 1;
 		}
-		
-		//if 
+
+		//if
 		buffer[bytesLidos] = block[posNoBloco-1];
 		//printf("%d ", posNoBloco);
 		posAtual++;
@@ -668,13 +668,76 @@ int t2fs_seek (t2fs_file handle, unsigned int offset)
 //localiza o primeiro arquivo válido do diretório
 int t2fs_first (t2fs_find *find_struct)
 {
+    GetDiskInformation();
 
+     int i=0, dirty=0, iBloco = 0, lengthBlocoControl = 0;
+    unsigned char block[blockSize];
+
+    lengthBlocoControl = ctrlSize + freeBlockSize;    //offset para posição do root
+
+    find_struct->currentBlock = -1;
+    find_struct->posInBlock = -1;
+
+    for(iBloco = 0; iBloco < rootSize; iBloco++)    //varre a área de diretório
+    {
+        read_block(lengthBlocoControl + iBloco, block);   //lê o bloco
+        for(i=0; i<blockSize;i+=64)         //varre o bloco
+        {
+            if(block[i] >= (unsigned char)161 && block[i] <= (unsigned char)250)       //se for arquivo válido
+            {
+                find_struct->currentBlock = iBloco;
+                find_struct->posInBlock = i;
+                dirty = 1;
+            }
+        }
+    }
+    if(dirty != 1)
+    {
+        find_struct->currentBlock = rootSize;
+        find_struct->posInBlock = blockSize;
+    }
+    return 0;
 }
 
 //obtém o próximo registro válido do diretório
 int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile)
 {
+    int i=0, dirty=0, iBloco = 0, lengthBlocoControl = 0;
+    unsigned char block[blockSize];
+    lengthBlocoControl = ctrlSize + freeBlockSize;
 
+    if(findStruct->currentBlock == rootSize)
+        return 1;
+
+    for(iBloco = findStruct->currentBlock; iBloco < rootSize; iBloco++)    //varre a área de diretório
+    {
+        read_block(lengthBlocoControl + iBloco, block);   //lê o bloco
+        for(i=findStruct->posInBlock; i<blockSize;i+=64)         //varre o bloco
+        {
+            if(block[i] >= (unsigned char)161 && block[i] <= (unsigned char)250)       //se for arquivo válido
+            {
+                if(!dirty)
+                {
+                    memcpy(block+i, dirFile, sizeof(*dirFile));  //grava o primeiro registro
+                    dirty = 1;
+                }
+                else
+                {
+                    findStruct->currentBlock = iBloco;
+                    findStruct->posInBlock = i;
+                    return 0;
+                }
+            }
+        }
+        findStruct->posInBlock = 0;
+    }
+    if(dirty)
+    {
+        findStruct->currentBlock = rootSize;
+        findStruct->posInBlock = i;
+        return 0;
+    }
+    return 1;
 }
 
 void sair(void)
