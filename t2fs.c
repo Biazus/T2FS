@@ -508,7 +508,7 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		write_block(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
 	}
 
-	else if (tamAtual > (2+blockSize)*blockSize && (tamAtual % (blockSize*blockSize) == 0)  
+	else if (tamAtual > (2+blockSize)*blockSize && (tamAtual % (blockSize*blockSize) == 0))  
 	{		//aloca o bloco de índices de nivel 2 da indireção dupla
 		int blockAddressInd;
 		blockAddressInd = allocateBlock();   //aloca bloco de índice (indireção simples)
