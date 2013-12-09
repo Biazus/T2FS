@@ -331,7 +331,7 @@ int t2fs_delete (char *nome)
 
 	qtdBlocos = arquivo->record.blocksFileSize;
 
-	while(qtdBlocos > 0 && i<2)
+	while(qtdBlocos > 0 && i<2)  //desaloca o dois primeiros blocos
 	{
 		setBitBitmap(arquivo->record.dataPtr[i], 0);
 		i++;		
@@ -339,7 +339,7 @@ int t2fs_delete (char *nome)
 	}
 	
 	i = 0;
-	if(qtdBlocos > 0)
+	if(qtdBlocos > 0)	//desaloca os blocos da indireção simples
 	{
 		setBitBitmap(arquivo->record.singleIndPtr, 0);
 		read_block(arquivo->record.singleIndPtr, block);
@@ -355,16 +355,23 @@ int t2fs_delete (char *nome)
 	}
 
 	i = 0;
-	if(qtdBlocos > 0)
+	if(qtdBlocos > 0)	//desaloca os blocos da indireção dupla
 	{
-		setBitBitmap(arquivo->record.doubleIndPtr, 0);
+		setBitBitmap(arquivo->record.doubleIndPtr, 0); //desaloca o 1o nível
 		read_block(arquivo->record.doubleIndPtr, block);
-		/*while(qtdBlocos > 0 && i<blockSize)     //liberar blocos de indirecao dupla
-		{
-			setBitBitmap(block[i], 0);
-			i++;		
-			qtdBlocos--;
-		}*/
+		int blockSegNivel = 0;
+		char blockInd[blockSize];		
+		while(qtdBlocos > 0 && blockSegNivel<blockSize)     //liberar blocos de indirecao dupla
+		{	
+			read_block(block[blockSegNivel], blockInd);		
+			while(qtdBlocos > 0 && i<blockSize)     //liberar blocos de indirecao dupla
+			{
+				setBitBitmap(blockInd[i], 0);
+				i++;		
+				qtdBlocos--;
+			}
+			blockSegNivel++;
+		}
 	}
 	
 	read_block(arquivo->bloco, block);	
@@ -479,9 +486,18 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		//for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
 		write_block(arquivo->record.singleIndPtr, blockPtr);	//grava bloco de índice
 	}
-	else
+	else if (tamAtual == (2+blockSize)*blockSize)  //aloca o bloco de índices da indireção dupla
 	{
-		//indireçao dupla
+	}	
+	else	//usa indireçao dupla
+	{
+		char blockPtr[blockSize];				
+		j = arquivo->record.blocksFileSize - 3;
+		read_block(arquivo->record.singleIndPtr, blockPtr);
+		blockPtr[j] = blockAddress;
+		//printf("\n%d Ptr:", j);
+		//for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
+		write_block(arquivo->record.singleIndPtr, blockPtr);	//grava bloco de índice
 	}
 	//printf("aba: %d", blockAddress);
 	return blockAddress;
@@ -506,9 +522,18 @@ int localizarBlocoCorrente(Descritor* arquivo, int posAtual)
 		blockAddress = blockInd[auxInd];
 		//printf("\nQtd. blocos: %d, auxInd: %d, blockAddress: %d", arquivo->record.blocksFileSize, auxInd, blockAddress);
 	}
-	else
+	else	//indireçao dupla
 	{
-		//indireçao dupla
+		int auxInd2, pos, pos2;
+		auxInd2 = arquivo->record.doubleIndPtr;   //bloco de índice (indireção dupla)
+		char blockInd[blockSize];				
+		read_block(auxInd2, blockInd);			//lê o 1o bloco de indices
+		pos = posAtual/blockSize - 2 - blockSize;
+		pos2 = pos/blockSize;					
+		auxInd2 = blockInd[pos2];
+		read_block(auxInd2, blockInd);   //lê o segundo bloco de indices
+		blockAddress = blockInd[pos];
+		if (blockAddress<0) blockAddress += 256; //corrige nrs negativos
 	}
 	//printf("LBC: %d", blockAddress);
 	return blockAddress;
@@ -611,7 +636,7 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 				blockAddress = arquivo->record.dataPtr[0];
 			else if (posAtual < 2*blockSize)
 				blockAddress = arquivo->record.dataPtr[1];
-			else if (posAtual > 2*blockSize && posAtual < (2+blockSize)*blockSize)
+			else if (posAtual > 2*blockSize && posAtual < (2+blockSize)*blockSize)   //indireçao simples
 			{
 				int auxInd;
 				auxInd = arquivo->record.singleIndPtr;   //bloco de índice (indireção simples)
@@ -619,12 +644,21 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 				read_block(auxInd, blockInd);
 				auxInd = posAtual/blockSize - 2;
 				blockAddress = blockInd[auxInd];
-				if (blockAddress<0) blockAddress += 256;
+				if (blockAddress<0) blockAddress += 256;	//corrige nrs negativos
 				//printf(" - %d ", blockAddress);
 			}
-			else
+			else 				//indireçao dupla
 			{
-				//indireçao dupla
+				int auxInd2, pos, pos2;
+				auxInd2 = arquivo->record.doubleIndPtr;   //bloco de índice (indireção dupla)
+				char blockInd[blockSize];				
+				read_block(auxInd2, blockInd);			//lê o 1o bloco de indices
+				pos = posAtual/blockSize - 2 - blockSize;
+				pos2 = pos/blockSize;					
+				auxInd2 = block[pos2];
+				read_block(auxInd2, blockInd);   //lê o segundo bloco de indices
+				blockAddress = blockInd[pos];
+				if (blockAddress<0) blockAddress += 256; //corrige nrs negativos
 			}
 			read_block(blockAddress, block);		//lê o bloco atual			
 			blocoLido = 1;
