@@ -10,6 +10,7 @@ short int blockSize = 256;
 short int freeBlockSize = 1;
 short int rootSize = 16;
 short int fileEntry = 64;
+char ident[]="Guilherme Schwade 192332 Naiche Barcelos 135970";
 
 struct st_Descritor{
 	int bloco;
@@ -229,7 +230,7 @@ void GetDiskInformation()
     }
 }
 
-int InsertFileRecord(t2fs_record* record)
+int InsertFileRecord(t2fs_record* record, int *blocoPtr, int *posPtr)
 {
     int i=0, dirty = 0, iBloco = 0, lenBlkCtrl = 0;
     char block[blockSize];
@@ -253,6 +254,8 @@ int InsertFileRecord(t2fs_record* record)
             //printf("Salvo no bloco %d\n", lenBlkCtrl + iBloco);
             write_block(lenBlkCtrl + iBloco, block);       //escreve no disco
 			setBitBitmap(iBloco + lenBlkCtrl, 1);
+			*blocoPtr = lenBlkCtrl + iBloco;
+			*posPtr = i;
 			break;
         }
     }
@@ -290,8 +293,9 @@ t2fs_file t2fs_create (char *nome)
     t->record.dataPtr[1] = 0;
     t->record.singleIndPtr = 0;
     t->record.doubleIndPtr = 0;
+	t->currentPos = 0;
 
-    InsertFileRecord(&t->record);
+    InsertFileRecord(&t->record, &t->bloco, &t->posNoBloco);
 
     t->handler = next_handler;
 
@@ -418,6 +422,7 @@ t2fs_file t2fs_open (char *nome)
                 next_handler++;
 
                 memcpy(&(t->record), block+i, sizeof(t->record));  //grava o primeiro registro
+				t->record.name[0] -=128;
                 descritores_abertos[count_descritores] = t;
                 count_descritores++;
                 found = 1;
@@ -518,7 +523,7 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		posInd1 = (arquivo->record.blocksFileSize - blockSize - 2)/blockSize;
 		char blockPtr[blockSize];
 		read_block(arquivo->record.doubleIndPtr, blockPtr);
-		blockPtr[posInd1] = blockAddressInd2
+		blockPtr[posInd1] = blockAddressInd2;
 		write_block(arquivo->record.doubleIndPtr, blockPtr);	//grava bloco de índice nivel 1
 
 		blockPtr[0] = blockAddress;
@@ -526,18 +531,18 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		write_block(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
 	}
 	else        //usa indireçao dupla
-        {
-                int iAux, pos, pos2;
-                pos = (arquivo->record.blocksFileSize - blockSize - 2)/blockSize;
-                pos2 = tamAtual % blockSize;
-                char blockPtr[blockSize];    //bloco de índice nivel 2
+    {
+        int iAux, pos, pos2;
+        pos = (arquivo->record.blocksFileSize - blockSize - 2)/blockSize;
+        pos2 = tamAtual % blockSize;
+        char blockPtr[blockSize];    //bloco de índice nivel 2
 
-                read_block(arquivo->record.doubleIndPtr, blockPtr);  //lê bloco de índice nível 1
-                iAux = blockPtr[pos];
-                read_block(iAux, blockPtr);     //lê bloco de índice nível 2
-                blockPtr[pos2] = blockAddress;
-                write_block(iAux, blockPtr);        //grava bloco de índice nível 2
-        }
+        read_block(arquivo->record.doubleIndPtr, blockPtr);  //lê bloco de índice nível 1
+        iAux = blockPtr[pos];
+        read_block(iAux, blockPtr);     //lê bloco de índice nível 2
+        blockPtr[pos2] = blockAddress;
+        write_block(iAux, blockPtr);        //grava bloco de índice nível 2
+    }
 	//printf("aba: %d", blockAddress);
 	return blockAddress;
 }
@@ -647,6 +652,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 	if (addrPoint<blockSize) arquivo->record.blocksFileSize++; //atualiza descritor
 
 	read_block(arquivo->bloco, block);
+	arquivo->record.name[0] += 128;
 	//printf("Conteúdo: \n\n Bloco: %d", arquivo->bloco);
 	memcpy(block+arquivo->posNoBloco, &(arquivo->record), 64);
 	write_block(arquivo->bloco, block);							//atualiza registro no root
@@ -810,6 +816,11 @@ int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile)
         return 0;
     }
     return 1;
+}
+
+char *t2fs_identify(void)
+{
+	return &ident; 
 }
 
 void sair(void)
