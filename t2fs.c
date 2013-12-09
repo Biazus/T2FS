@@ -446,6 +446,7 @@ int t2fs_close (t2fs_file handle)
     }
 }
 
+
 int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 {
 	//printf("ABA:");
@@ -488,6 +489,39 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 	}
 	else if (tamAtual == (2+blockSize)*blockSize)  //aloca o bloco de índices da indireção dupla
 	{
+		int blockAddressInd, blockAddressInd2;
+		blockAddressInd = allocateBlock();   //aloca bloco de índice (indireção dupla)
+		if (blockAddressInd < 1)
+		{	return -1;	}
+		arquivo->record.doubleIndPtr = blockAddressInd;
+
+		char blockPtr[blockSize];
+		blockAddressInd2 = allocateBlock();   //aloca bloco de índice nivel 2 (indireção dupla)
+		if (blockAddressInd2 < 1)
+		{	return -1;	}
+		blockPtr[0] = blockAddressInd2;
+		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
+		write_block(blockAddressInd, blockPtr);	//grava bloco de índice nivel 1
+
+		blockPtr[0] = blockAddress;
+		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
+		write_block(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
+	}
+
+	else if (tamAtual > (2+blockSize)*blockSize && (tamAtual % (blockSize*blockSize) == 0)  
+	{		//aloca o bloco de índices de nivel 2 da indireção dupla
+		int blockAddressInd;
+		blockAddressInd = allocateBlock();   //aloca bloco de índice (indireção simples)
+		if (blockAddressInd < 1)
+		{
+			return -1;
+		}
+		arquivo->record.singleIndPtr = blockAddressInd;
+
+		char blockPtr[blockSize];
+		blockPtr[0] = blockAddress;
+		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
+		write_block(blockAddressInd, blockPtr);	//grava bloco de índice
 	}
 	else	//usa indireçao dupla
 	{
@@ -495,14 +529,11 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		j = arquivo->record.blocksFileSize - 3;
 		read_block(arquivo->record.singleIndPtr, blockPtr);
 		blockPtr[j] = blockAddress;
-		//printf("\n%d Ptr:", j);
-		//for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
 		write_block(arquivo->record.singleIndPtr, blockPtr);	//grava bloco de índice
 	}
 	//printf("aba: %d", blockAddress);
 	return blockAddress;
 }
-
 
 int localizarBlocoCorrente(Descritor* arquivo, int posAtual)
 {
