@@ -820,7 +820,7 @@ int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile)
 
 char *t2fs_identify(void)
 {
-	return &ident; 
+	return "Guilherme Schwade 192332 Naiche Barcelos 135970"; //&ident; 
 }
 
 void sair(void)
