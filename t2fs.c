@@ -10,7 +10,7 @@ short int blockSize = 256;
 short int freeBlockSize = 1;
 short int rootSize = 16;
 short int fileEntry = 64;
-char ident[]="Guilherme Schwade 192332 Naiche Barcelos 135970";
+char ident[]="Mateus Cardoso 000000 Miller Biazus 187984";
 
 struct st_Descritor{
 	int bloco;
@@ -82,7 +82,7 @@ int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bi
 	iBloco = ctrlSize + posicao/(8*blockSize);		//posição do bloco que contém o bit desejado
 	//printf("\nBit no bloco: %d ", iBloco);
 
-    read_block(iBloco, block);        //lê o bloco
+    	read_sector(iBloco, block);        //lê o bloco
 
 	iAux = (posicao - ((iBloco-1) * blockSize));
 
@@ -103,7 +103,7 @@ int setBitBitmap(int posicao, short int ocupado)   //seta ou reseta um bit do bi
 
 	//printf(" - Bit %d do byte: %d\n", posBit, posByte);
 
-	write_block(iBloco, block);       //escreve no disco
+	write_sector(iBloco, block);       //escreve no disco
 
     return 0;
 }
@@ -118,13 +118,13 @@ int allocateBlock()    //Aloca um bloco da área de dados e índices retornando 
 	bitmapBlock = ctrlSize;
 	inicioDados = ctrlSize + freeBlockSize + rootSize;
 
-	read_block(bitmapBlock, block);        //lê o bloco
+	read_sector(bitmapBlock, block);        //lê o bloco
 	for (i = inicioDados; i < diskSize; i++) //varre o bitmap
 	{
 		if (i > (bitmapBlock-ctrlSize+1)*blockSize*8)  //caso exista mais de um bloco de bitmap
 		{
 			bitmapBlock++;
-			read_block(bitmapBlock, block);
+			read_sector(bitmapBlock, block);
 		}
 		posByte = (i - (bitmapBlock-ctrlSize)) / 8;
 		posBit = 7 - (i % 8);
@@ -153,7 +153,7 @@ int fileExists(char *nome, int *posicao)	//testa se já existe arquivo com o est
 
     for(iBloco = 0; iBloco < rootSize; iBloco++)  //varre o diretório raiz
     {
-        read_block(lenBlkCtrl + iBloco, block);   //lê o bloco
+        read_sector(lenBlkCtrl + iBloco, block);   //lê o bloco
         for (i = 0; i < blockSize; i+=64)		 //varre o bloco lido
         {
 	    	char fileName[40];
@@ -184,7 +184,7 @@ void InvalidateRootDirectory()
 
     for(iBloco = 0; iBloco < rootSize; iBloco++)	//varre a área de diretório
     {
-        read_block(lengthBlocoControl + iBloco, block);   //lê o bloco
+        read_sector(lengthBlocoControl + iBloco, block);   //lê o bloco
         for(i=0; i<blockSize;i+=64)			//varre o bloco
         {
             if(block[i] < (char)161 || block[i] > (char)250)       //se for arquivo válido
@@ -198,7 +198,7 @@ void InvalidateRootDirectory()
         if(dirty)
 	{
 	    //printf("Bloco %d gravado.\n", lengthBlocoControl + iBloco);
-            write_block(lengthBlocoControl + iBloco, block);  //escreve no disco
+            write_sector(lengthBlocoControl + iBloco, block);  //escreve no disco
 	}
     }
 }
@@ -210,7 +210,7 @@ void GetDiskInformation()
     {
         geometryLoaded = 1;
         char block[256];
-        read_block(0,block);
+        read_sector(0,block);
         if(block[0] == 'T' && block[1] == '2' && block[2] == 'F' && block[3] == 'S')
         {
             ctrlSize = block[5];
@@ -238,7 +238,7 @@ int InsertFileRecord(t2fs_record* record, int *blocoPtr, int *posPtr)
 
     for(iBloco = 0; iBloco < rootSize; iBloco++)  //varre o diretório raiz
     {
-        read_block(lenBlkCtrl + iBloco, block);   //lê o bloco
+        read_sector(lenBlkCtrl + iBloco, block);   //lê o bloco
         for (i = 0; i < blockSize; i+=64)		//varre o bloco lido
         {
             if((unsigned char)block[i] < 161 || (unsigned char)block[i] > 250)  //se o registro não for válido, grava o novo registro
@@ -252,7 +252,7 @@ int InsertFileRecord(t2fs_record* record, int *blocoPtr, int *posPtr)
         if(dirty)
         {
             //printf("Salvo no bloco %d\n", lenBlkCtrl + iBloco);
-            write_block(lenBlkCtrl + iBloco, block);       //escreve no disco
+            write_sector(lenBlkCtrl + iBloco, block);       //escreve no disco
 			setBitBitmap(iBloco + lenBlkCtrl, 1);
 			*blocoPtr = lenBlkCtrl + iBloco;
 			*posPtr = i;
@@ -346,7 +346,7 @@ int t2fs_delete (char *nome)
 	if(qtdBlocos > 0)	//desaloca os blocos da indireção simples
 	{
 		setBitBitmap(arquivo->record.singleIndPtr, 0);
-		read_block(arquivo->record.singleIndPtr, block);
+		read_sector(arquivo->record.singleIndPtr, block);
 		while(qtdBlocos > 0 && i<blockSize)
 		{
 			pos = (int)(block[i]);
@@ -362,12 +362,12 @@ int t2fs_delete (char *nome)
 	if(qtdBlocos > 0)	//desaloca os blocos da indireção dupla
 	{
 		setBitBitmap(arquivo->record.doubleIndPtr, 0); //desaloca o 1o nível
-		read_block(arquivo->record.doubleIndPtr, block);
+		read_sector(arquivo->record.doubleIndPtr, block);
 		int blockSegNivel = 0;
 		char blockInd[blockSize];
 		while(qtdBlocos > 0 && blockSegNivel<blockSize)     //liberar blocos de indirecao dupla
 		{
-			read_block(block[blockSegNivel], blockInd);
+			read_sector(block[blockSegNivel], blockInd);
 			while(qtdBlocos > 0 && i<blockSize)     //liberar blocos de indirecao dupla
 			{
 				setBitBitmap(blockInd[i], 0);
@@ -378,9 +378,9 @@ int t2fs_delete (char *nome)
 		}
 	}
 
-	read_block(arquivo->bloco, block);
+	read_sector(arquivo->bloco, block);
 	block[arquivo->posNoBloco] = 0;	//colocar 0 no primeiro bit do nome do arquivo
-	write_block(arquivo->bloco, block);
+	write_sector(arquivo->bloco, block);
 
 	t2fs_close(hndl);
 	return 1;
@@ -406,7 +406,7 @@ t2fs_file t2fs_open (char *nome)
 
     for(iBloco = 0; iBloco < rootSize; iBloco++)  //varre o diretório raiz
     {
-        read_block(lenBlkCtrl + iBloco, block);   //lê o bloco
+        read_sector(lenBlkCtrl + iBloco, block);   //lê o bloco
         for (i = 0; i < blockSize; i+=64)       //varre o bloco lido
         {
             //printf("i = %d arquivo: %s e Nome pesquisa: %s\n", i, block + i, nome);
@@ -480,17 +480,17 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		char blockPtr[blockSize];
 		blockPtr[0] = blockAddress;
 		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
-		write_block(blockAddressInd, blockPtr);	//grava bloco de índice
+		write_sector(blockAddressInd, blockPtr);	//grava bloco de índice
 	}
 	else if ((tamAtual > 2*blockSize) && (tamAtual < (2+blockSize)*blockSize)) //usa o bloco de índice da indireçao simples
 	{
 		char blockPtr[blockSize];
 		j = arquivo->record.blocksFileSize - 3;
-		read_block(arquivo->record.singleIndPtr, blockPtr);
+		read_sector(arquivo->record.singleIndPtr, blockPtr);
 		blockPtr[j] = blockAddress;
 		//printf("\n%d Ptr:", j);
 		//for(j=0; j<256;j++) printf(" %d", blockPtr[j]);
-		write_block(arquivo->record.singleIndPtr, blockPtr);	//grava bloco de índice
+		write_sector(arquivo->record.singleIndPtr, blockPtr);	//grava bloco de índice
 	}
 	else if (tamAtual == (2+blockSize)*blockSize)  //aloca o bloco de índices da indireção dupla
 	{
@@ -506,11 +506,11 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		{	return -1;	}
 		blockPtr[0] = blockAddressInd2;
 		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
-		write_block(blockAddressInd, blockPtr);	//grava bloco de índice nivel 1
+		write_sector(blockAddressInd, blockPtr);	//grava bloco de índice nivel 1
 
 		blockPtr[0] = blockAddress;
 		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
-		write_block(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
+		write_sector(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
 	}
 	else if (tamAtual > (2+blockSize)*blockSize && (tamAtual % (blockSize*blockSize) == 0)) 
 	{		//aloca o bloco de índices de nivel 2 da indireção dupla
@@ -522,13 +522,13 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
 		}
 		posInd1 = (arquivo->record.blocksFileSize - blockSize - 2)/blockSize;
 		char blockPtr[blockSize];
-		read_block(arquivo->record.doubleIndPtr, blockPtr);
+		read_sector(arquivo->record.doubleIndPtr, blockPtr);
 		blockPtr[posInd1] = blockAddressInd2;
-		write_block(arquivo->record.doubleIndPtr, blockPtr);	//grava bloco de índice nivel 1
+		write_sector(arquivo->record.doubleIndPtr, blockPtr);	//grava bloco de índice nivel 1
 
 		blockPtr[0] = blockAddress;
 		for (j=1; j<blockSize; j++) blockPtr[j] = 0;
-		write_block(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
+		write_sector(blockAddressInd2, blockPtr);	//grava bloco de índice nivel 2
 	}
 	else        //usa indireçao dupla
     {
@@ -537,11 +537,11 @@ int alocarBlocoParaArquivo(Descritor* arquivo, int tamAtual)
         pos2 = tamAtual % blockSize;
         char blockPtr[blockSize];    //bloco de índice nivel 2
 
-        read_block(arquivo->record.doubleIndPtr, blockPtr);  //lê bloco de índice nível 1
+        read_sector(arquivo->record.doubleIndPtr, blockPtr);  //lê bloco de índice nível 1
         iAux = blockPtr[pos];
-        read_block(iAux, blockPtr);     //lê bloco de índice nível 2
+        read_sector(iAux, blockPtr);     //lê bloco de índice nível 2
         blockPtr[pos2] = blockAddress;
-        write_block(iAux, blockPtr);        //grava bloco de índice nível 2
+        write_sector(iAux, blockPtr);        //grava bloco de índice nível 2
     }
 	//printf("aba: %d", blockAddress);
 	return blockAddress;
@@ -559,7 +559,7 @@ int localizarBlocoCorrente(Descritor* arquivo, int posAtual)
 		int auxInd;
 		auxInd = arquivo->record.singleIndPtr;   //bloco de índice (indireção simples)
 		char blockInd[blockSize];
-		read_block(auxInd, blockInd);
+		read_sector(auxInd, blockInd);
 		//auxInd = (tamAtual - 2*blockSize) / blockSize;
 		auxInd = posAtual/blockSize -2; //(arquivo->record.blocksFileSize) - 3;
 		blockAddress = blockInd[auxInd];
@@ -570,11 +570,11 @@ int localizarBlocoCorrente(Descritor* arquivo, int posAtual)
 		int auxInd2, pos, pos2;
 		auxInd2 = arquivo->record.doubleIndPtr;   //bloco de índice (indireção dupla)
 		char blockInd[blockSize];
-		read_block(auxInd2, blockInd);			//lê o 1o bloco de indices
+		read_sector(auxInd2, blockInd);			//lê o 1o bloco de indices
 		pos = posAtual/blockSize - 2 - blockSize;
 		pos2 = pos/blockSize;
 		auxInd2 = blockInd[pos2];
-		read_block(auxInd2, blockInd);   //lê o segundo bloco de indices
+		read_sector(auxInd2, blockInd);   //lê o segundo bloco de indices
 		blockAddress = blockInd[pos];
 		if (blockAddress<0) blockAddress += 256; //corrige nrs negativos
 	}
@@ -626,7 +626,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 		{
 			addrPoint = posAtual % blockSize;
 			blockAddress = localizarBlocoCorrente(arquivo, posAtual);
-			read_block(blockAddress, block);		//lê o último bloco
+			read_sector(blockAddress, block);		//lê o último bloco
 		}
 
 		//printf("\n%d - ", blockAddress);
@@ -640,7 +640,7 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 			sizeLeft--;
 			spaceLeft--;
 		}
-		write_block(blockAddress, block);  //escreve dados no disco
+		write_sector(blockAddress, block);  //escreve dados no disco
 	}
 	arquivo->currentPos = posAtual;
 
@@ -651,11 +651,11 @@ int t2fs_write(t2fs_file handle, char *buffer, int size)	//escreve size bytes do
 	arquivo->record.blocksFileSize = arquivo->record.bytesFileSize / blockSize;
 	if (addrPoint<blockSize) arquivo->record.blocksFileSize++; //atualiza descritor
 
-	read_block(arquivo->bloco, block);
+	read_sector(arquivo->bloco, block);
 	arquivo->record.name[0] += 128;
 	//printf("Conteúdo: \n\n Bloco: %d", arquivo->bloco);
 	memcpy(block+arquivo->posNoBloco, &(arquivo->record), 64);
-	write_block(arquivo->bloco, block);							//atualiza registro no root
+	write_sector(arquivo->bloco, block);							//atualiza registro no root
 
 	return size;
 }
@@ -685,7 +685,7 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 				int auxInd;
 				auxInd = arquivo->record.singleIndPtr;   //bloco de índice (indireção simples)
 				char blockInd[blockSize];
-				read_block(auxInd, blockInd);
+				read_sector(auxInd, blockInd);
 				auxInd = posAtual/blockSize - 2;
 				blockAddress = blockInd[auxInd];
 				if (blockAddress<0) blockAddress += 256;	//corrige nrs negativos
@@ -696,15 +696,15 @@ int t2fs_read(t2fs_file handle, char *buffer, int size)	//lê size bytes do arqu
 				int auxInd2, pos, pos2;
 				auxInd2 = arquivo->record.doubleIndPtr;   //bloco de índice (indireção dupla)
 				char blockInd[blockSize];
-				read_block(auxInd2, blockInd);			//lê o 1o bloco de indices
+				read_sector(auxInd2, blockInd);			//lê o 1o bloco de indices
 				pos = posAtual/blockSize - 2 - blockSize;
 				pos2 = pos/blockSize;
 				auxInd2 = block[pos2];
-				read_block(auxInd2, blockInd);   //lê o segundo bloco de indices
+				read_sector(auxInd2, blockInd);   //lê o segundo bloco de indices
 				blockAddress = blockInd[pos];
 				if (blockAddress<0) blockAddress += 256; //corrige nrs negativos
 			}
-			read_block(blockAddress, block);		//lê o bloco atual
+			read_sector(blockAddress, block);		//lê o bloco atual
 			blocoLido = 1;
 		}
 
@@ -758,7 +758,7 @@ int t2fs_first (t2fs_find *find_struct)
 
     for(iBloco = 0; iBloco < rootSize; iBloco++)    //varre a área de diretório
     {
-        read_block(lengthBlocoControl + iBloco, block);   //lê o bloco
+        read_sector(lengthBlocoControl + iBloco, block);   //lê o bloco
         for(i=0; i<blockSize;i+=64)         //varre o bloco
         {
             if(block[i] >= (unsigned char)161 && block[i] <= (unsigned char)250)       //se for arquivo válido
@@ -789,7 +789,7 @@ int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile)
 
     for(iBloco = findStruct->currentBlock; iBloco < rootSize; iBloco++)    //varre a área de diretório
     {
-        read_block(lengthBlocoControl + iBloco, block);   //lê o bloco
+        read_sector(lengthBlocoControl + iBloco, block);   //lê o bloco
         for(i=findStruct->posInBlock; i<blockSize;i+=64)         //varre o bloco
         {
             if(block[i] >= (unsigned char)161 && block[i] <= (unsigned char)250)       //se for arquivo válido
@@ -820,7 +820,7 @@ int t2fs_next (t2fs_find *findStruct, t2fs_record *dirFile)
 
 char *t2fs_identify(void)
 {
-	return "Guilherme Schwade 192332 Naiche Barcelos 135970"; //&ident; 
+	return "Mateus Cardoso 000000 Miller Biazus 187984"; //&ident; 
 }
 
 void sair(void)
